@@ -213,7 +213,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (isBuyGump)
             {
-                _playerGoldLabel = new Label(World.Player.Gold.ToString(), true, 0x0386, 0, 1)
+                _playerGoldLabel = new Label(World.Player.Gold.ToString("N0"), true, 0x0386, 0, 1)
                 {
                     X = _totalLabel.X + 120,
                     Y = _totalLabel.Y
@@ -473,13 +473,13 @@ namespace ClassicUO.Game.UI.Gumps
                     sum += t.Amount * t.Price;
                 }
 
-                _totalLabel.Text = sum.ToString();
+                _totalLabel.Text = sum.ToString("N0");
                 _updateTotal = false;
             }
 
             if (_playerGoldLabel != null)
             {
-                _playerGoldLabel.Text = World.Player.Gold.ToString();
+                _playerGoldLabel.Text = World.Player.Gold.ToString("N0");
             }
 
             base.Update();
@@ -715,7 +715,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 Add(
                     _amountLabel = new Label(
-                        count.ToString(),
+                        count.ToString("N0"),
                         true,
                         0x0219,
                         35,
@@ -746,8 +746,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             public int Amount
             {
-                get => int.Parse(_amountLabel.Text);
-                set => _amountLabel.Text = value.ToString();
+                get => int.Parse(_amountLabel.Text, System.Globalization.NumberStyles.Number);
+                set => _amountLabel.Text = value.ToString("N0");
             }
 
             public bool IsSelected
@@ -940,7 +940,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 Add(
                     _amountLabel = new Label(
-                        amount.ToString(),
+                        amount.ToString("N0"),
                         true,
                         0x021F,
                         35,
@@ -1076,8 +1076,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             public int Amount
             {
-                get => int.Parse(_amountLabel.Text);
-                set => _amountLabel.Text = value.ToString();
+                get => int.Parse(_amountLabel.Text, System.Globalization.NumberStyles.Number);
+                set => _amountLabel.Text = value.ToString("N0");
             }
 
             public event EventHandler OnIncreaseButtomClicked;
