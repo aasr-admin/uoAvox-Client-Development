@@ -111,6 +111,8 @@ namespace ClassicUO.Game.Managers
 
         public static ContextMenuShowMenu ContextMenu { get; private set; }
 
+        public static event Action<Gump> OnAdded, OnRemoved;
+
         public static void ShowGamePopup(PopupMenuGump popup)
         {
             PopupMenu?.Dispose();
@@ -370,13 +372,15 @@ namespace ClassicUO.Game.Managers
             {
                 LinkedListNode<Gump> next = first.Next;
 
-                Control g = first.Value;
+                Gump g = first.Value;
 
                 g.Update();
 
                 if (g.IsDisposed)
                 {
                     Gumps.Remove(first);
+
+                    OnRemoved?.Invoke(g);
                 }
 
                 first = next;
@@ -415,6 +419,8 @@ namespace ClassicUO.Game.Managers
                 }
 
                 _needSort = Gumps.Count > 1;
+
+                OnAdded?.Invoke(gump);
             }
         }
 
