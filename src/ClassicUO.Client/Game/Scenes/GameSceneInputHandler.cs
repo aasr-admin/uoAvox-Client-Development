@@ -568,6 +568,7 @@ namespace ClassicUO.Game.Scenes
             {
                 switch (TargetManager.TargetingState)
                 {
+                    case CursorTarget.LocalTarget:
                     case CursorTarget.Grab:
                     case CursorTarget.SetGrabBag:
                     case CursorTarget.Position:
