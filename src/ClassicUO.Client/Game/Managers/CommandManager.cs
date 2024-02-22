@@ -32,7 +32,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+
 using ClassicUO.Game.GameObjects;
+using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Resources;
 using ClassicUO.Utility.Logging;
@@ -85,7 +88,6 @@ namespace ClassicUO.Game.Managers
                 }
             );
 
-
             Register
             (
                 "debug",
@@ -95,6 +97,27 @@ namespace ClassicUO.Game.Managers
 
                 }
             );
+
+            Register
+            (
+                "marksos",
+                s =>
+                {
+                    MarkersManagerGump.BeginTargetSOS();
+                }
+            );
+
+            Action<string[]> help = s =>
+            {
+                foreach (var cmd in _commands.Keys.OrderBy(o => o, StringComparer.InvariantCultureIgnoreCase))
+                {
+                    MessageManager.HandleMessage(null, cmd, string.Empty, 0x3B2, Data.MessageType.System, 3, Data.TextType.SYSTEM, true);
+                }
+            };
+
+            Register("?", help);
+            Register("help", help);
+            Register("commands", help);
         }
 
 

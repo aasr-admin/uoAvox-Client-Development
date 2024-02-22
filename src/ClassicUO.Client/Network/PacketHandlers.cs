@@ -6614,6 +6614,7 @@ namespace ClassicUO.Network
                 }
                 else if (
                     string.Equals(entry, "gumppic", StringComparison.InvariantCultureIgnoreCase)
+                 || string.Equals(entry, "kr_gumppic", StringComparison.InvariantCultureIgnoreCase)
                 )
                 {
                     GumpPic pic = new GumpPic(gparams);

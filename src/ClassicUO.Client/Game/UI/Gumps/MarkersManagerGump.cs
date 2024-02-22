@@ -10,6 +10,10 @@ using ClassicUO.Resources;
 using Microsoft.Xna.Framework.Graphics;
 using static ClassicUO.Game.UI.Gumps.WorldMapGump;
 using ClassicUO.Renderer;
+using ClassicUO.Game.GameObjects;
+using ClassicUO.Network;
+using System.Text.RegularExpressions;
+using ClassicUO.Game.Data;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -23,6 +27,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private ScrollArea _scrollArea;
         private readonly SearchTextBoxControl _searchTextBox;
+        private readonly NiceButton _importSOSButton;
 
         private string _searchText = "";
         private int _categoryId = 0;
@@ -38,7 +43,8 @@ namespace ClassicUO.Game.UI.Gumps
         private enum ButtonsOption
         {
             SEARCH_BTN = 100,
-            CLEAR_SEARCH_BTN
+            CLEAR_SEARCH_BTN,
+            IMPORT_SOS,
         }
 
         internal MarkersManagerGump() : base(0, 0)
@@ -155,7 +161,15 @@ namespace ClassicUO.Game.UI.Gumps
             );
 
             // Search Field
-            Add(_searchTextBox = new SearchTextBoxControl(WIDTH / 2 - 150, 40));
+            Add(_searchTextBox = new SearchTextBoxControl(40, 40));
+
+            // Import SOS
+            Add(_importSOSButton = new NiceButton(WIDTH - 120, 40, 80, 25, ButtonAction.Activate, ResGumps.ImportSOS)
+            {
+                 ButtonParameter = (int)ButtonsOption.IMPORT_SOS,
+            });
+
+            _importSOSButton.TextLabel.Hue = 0x33;
 
             DrawArea(_markerFiles[_categoryId].IsEditable);
 
@@ -267,6 +281,9 @@ namespace ClassicUO.Game.UI.Gumps
                     _searchTextBox.ClearText();
                     _searchText = "";
                     break;
+                case (int)ButtonsOption.IMPORT_SOS:
+                    BeginTargetSOS();
+                    break;
                 default:
                     _categoryId = buttonID;
                     _markers = _markerFiles[buttonID].Markers;
@@ -291,6 +308,173 @@ namespace ClassicUO.Game.UI.Gumps
         {
             _isMarkerListModified = true;
         }
+
+        #region SOS Markers
+
+        private static Item _sosItem;
+        private static int _sosAttempts;
+
+        static MarkersManagerGump()
+        {
+            UIManager.OnAdded += HandleSOSGump;
+        }
+
+        private static void SendSOSFailedMessage()
+        {
+            MessageManager.HandleMessage(null, ResGumps.SOSMarkerFailed, string.Empty, 0x3B2, MessageType.System, 3, TextType.SYSTEM, true);
+        }
+
+        private static void SendSOSUpdatedMessage()
+        {
+            MessageManager.HandleMessage(null, ResGumps.SOSMarkerUpdated, string.Empty, 0x3B2, MessageType.System, 3, TextType.SYSTEM, true);
+        }
+
+        private static void SendSOSAddedMessage()
+        {
+            MessageManager.HandleMessage(null, ResGumps.SOSMarkerAdded, string.Empty, 0x3B2, MessageType.System, 3, TextType.SYSTEM, true);
+        }
+
+        public static void BeginTargetSOS()
+        {
+            MessageManager.HandleMessage(null, ResGumps.SOSMarkerTarget, string.Empty, 0x3B2, MessageType.System, 3, TextType.SYSTEM, true);
+
+            TargetManager.SetLocalTargeting(505, TargetType.Neutral, OnTargetSOS);
+        }
+
+        private static void OnTargetSOS(LastTargetInfo target)
+        {
+            if (target.IsEntity)
+            {
+                var obj = World.Get(target.Serial) as Item;
+
+                if (obj?.Name?.EndsWith("SOS") == true)
+                {
+                    _sosItem = obj;
+
+                    NetClient.Socket.Send_DoubleClick(obj.Serial);
+
+                    return;
+                }
+            }
+
+            SendSOSFailedMessage();
+        }
+
+        private static void HandleSOSGump(Gump gump)
+        {
+            if (_sosItem == null || gump?.IsFromServer != true)
+            {
+                return;
+            }
+
+            Match match = null;
+
+            foreach (var c in gump.Children)
+            {
+                if (c is HtmlControl h)
+                {
+                    match = Regex.Match(h.Text, @"\d+[o|°]\s?\d+'[N|S],\s+\d+[o|°]\s?\d+'[E|W]");
+
+                    if (match.Success)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (match?.Success != true)
+            {
+                if (++_sosAttempts >= 10)
+                {
+                    _sosItem = null;
+                    _sosAttempts = 0;
+
+                    SendSOSFailedMessage();
+                }
+
+                return;
+            }
+
+            var userFile = _markerFiles.Where(f => f.Name == USER_MARKERS_FILE).FirstOrDefault();
+
+            if (userFile == null)
+            {
+                _sosItem = null;
+                _sosAttempts = 0;
+
+                SendSOSFailedMessage();
+
+                return;
+            }
+
+            try
+            {
+                var markerX = -1;
+                var markerY = -1;
+
+                ConvertCoords(match.Value, ref markerX, ref markerY);
+
+                if (userFile.Markers.Exists(m => m.MapId == -505 && m.X == markerX && m.Y == markerY))
+                {
+                    SendSOSUpdatedMessage();
+                    return;
+                }
+
+                WMapMarker marker = new()
+                {
+                    X = markerX,
+                    Y = markerY,
+                    MapId = -505,
+                    Name = "SOS",
+                    MarkerIconName = "SOS",
+                    Color = Color.Green,
+                    ColorName = "green",
+                    ZoomIndex = 3
+                };
+
+                if (_markerIcons.TryGetValue("SOS", out Texture2D value))
+                {
+                    marker.MarkerIcon = value;
+                }
+
+                userFile.Markers.Add(marker);
+
+                SendSOSAddedMessage();
+
+                var manager = UIManager.GetGump<MarkersManagerGump>();
+
+                if (manager != null)
+                {
+                    manager._isMarkerListModified = true;
+
+                    manager._scrollArea.Clear();
+
+                    manager.DrawArea(userFile.IsEditable);
+                }
+                else
+                {
+                    File.WriteAllLines(userFile.FullPath, userFile.Markers.Select(m => $"{m.X},{m.Y},{m.MapId},{m.Name},{m.MarkerIconName},{m.ColorName},4"));
+                }
+
+                var wmGump = UIManager.GetGump<WorldMapGump>();
+
+                if (wmGump?.MapIndex is 0 or 1)
+                {
+                    wmGump.GoToMarker(marker.X, marker.Y, false);
+                }
+            }
+            finally
+            {
+                gump.Dispose();
+
+                _sosItem = null;
+                _sosAttempts = 0;
+
+                BeginTargetSOS();
+            }
+        }
+
+        #endregion
 
         public override void Dispose()
         {
