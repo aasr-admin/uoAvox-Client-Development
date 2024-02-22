@@ -364,6 +364,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     switch (TargetManager.TargetingState)
                     {
+                        case CursorTarget.LocalTarget:
                         case CursorTarget.Position:
                         case CursorTarget.Object:
                         case CursorTarget.Grab:

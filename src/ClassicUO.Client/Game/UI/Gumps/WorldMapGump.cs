@@ -86,6 +86,9 @@ namespace ClassicUO.Game.UI.Gumps
         public static readonly string UserMarkersFilePath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Client", $"{USER_MARKERS_FILE}.usr");
 
         private int _mapIndex;
+
+        public int MapIndex => _mapIndex;
+
         private bool _mapMarkersLoaded;
 
         private List<string> _hiddenZoneFiles;
@@ -2540,6 +2543,8 @@ namespace ClassicUO.Game.UI.Gumps
                     hueVector
                 );
             }
+
+
         }
 
         private void DrawMobile
@@ -2708,7 +2713,10 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (marker.MapId != World.MapIndex)
             {
-                return false;
+                if (marker.MapId != -0x505 || World.MapIndex > 1)
+                {
+                    return false;
+                }
             }
 
             if (_zoomIndex < marker.ZoomIndex && marker.Color == Color.Transparent)
@@ -3495,7 +3503,7 @@ namespace ClassicUO.Game.UI.Gumps
         /// <param name="coords"></param>
         /// <param name="xAxis"></param>
         /// <param name="yAxis"></param>
-        private static void ConvertCoords(string coords, ref int xAxis, ref int yAxis)
+        public static void ConvertCoords(string coords, ref int xAxis, ref int yAxis)
         {
             string[] coordsSplit = coords.Split(',');
 

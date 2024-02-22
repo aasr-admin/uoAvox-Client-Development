@@ -2069,6 +2069,15 @@ namespace ClassicUO.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Import SOS.
+        /// </summary>
+        public static string ImportSOS {
+            get {
+                return ResourceManager.GetString("ImportSOS", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Impossible to define the client version.
         ///Client version: &apos;{0}&apos;.
         /// </summary>
@@ -3734,6 +3743,42 @@ namespace ClassicUO.Resources {
         public static string SortBy {
             get {
                 return ResourceManager.GetString("SortBy", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to SOS marker added!.
+        /// </summary>
+        public static string SOSMarkerAdded {
+            get {
+                return ResourceManager.GetString("SOSMarkerAdded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to SOS marker failed!.
+        /// </summary>
+        public static string SOSMarkerFailed {
+            get {
+                return ResourceManager.GetString("SOSMarkerFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Target the SOS you wish to mark on the map....
+        /// </summary>
+        public static string SOSMarkerTarget {
+            get {
+                return ResourceManager.GetString("SOSMarkerTarget", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to SOS marker updated!.
+        /// </summary>
+        public static string SOSMarkerUpdated {
+            get {
+                return ResourceManager.GetString("SOSMarkerUpdated", resourceCulture);
             }
         }
         
