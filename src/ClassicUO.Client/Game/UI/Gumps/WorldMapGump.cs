@@ -2920,7 +2920,7 @@ namespace ClassicUO.Game.UI.Gumps
                 X = int.Parse(Truncate(splits[0], 4)),
                 Y = int.Parse(Truncate(splits[1], 4)),
                 MapId = int.Parse(splits[2]),
-                Name = Truncate(splits[3], 25),
+                Name = Truncate(splits[3], 60),
                 MarkerIconName = splits[4] ?? string.Empty,
                 Color = GetColor(Truncate(splits[5], 10)),
                 ColorName = Truncate(splits[5], 10),

@@ -31,7 +31,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly int _markerIdx;
 
         private const int MAX_CORD_LEN = 10;
-        private const int MAX_NAME_LEN = 25;
+        private const int MAX_NAME_LEN = 60;
 
         private const int MAP_MIN_CORD = 0;
         private readonly int _mapMaxX = MapLoader.Instance.MapsDefaultSize[World.MapIndex, 0];
