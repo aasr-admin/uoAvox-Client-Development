@@ -44,105 +44,64 @@ namespace ClassicUO.Game.Managers
 {
     internal static class CommandManager
     {
-        private static readonly Dictionary<string, Action<string[]>> _commands = new Dictionary<string, Action<string[]>>();
+        private static readonly Dictionary<string, Action<string[]>> _commands = new(StringComparer.OrdinalIgnoreCase);
 
         public static void Initialize()
         {
-            Register
-            (
-                "info",
-                s =>
-                {
-                    if (TargetManager.IsTargeting)
-                    {
-                        TargetManager.CancelTarget();
-                    }
-
-                    TargetManager.SetTargeting(CursorTarget.SetTargetClientSide, CursorType.Target, TargetType.Neutral);
-                }
-            );
-
-            Register
-            (
-                "datetime",
-                s =>
-                {
-                    if (World.Player != null)
-                    {
-                        GameActions.Print(string.Format(ResGeneral.CurrentDateTimeNowIs0, DateTime.Now));
-                    }
-                }
-            );
-
-            Register
-            (
-                "hue",
-                s =>
-                {
-                    if (TargetManager.IsTargeting)
-                    {
-                        TargetManager.CancelTarget();
-                    }
-
-                    TargetManager.SetTargeting(CursorTarget.HueCommandTarget, CursorType.Target, TargetType.Neutral);
-                }
-            );
-
-            Register
-            (
-                "debug",
-                s =>
-                {
-                    CUOEnviroment.Debug = !CUOEnviroment.Debug;
-
-                }
-            );
-
-            Register
-            (
-                "marksos",
-                s =>
-                {
-                    MarkersManagerGump.BeginTargetSOS();
-                }
-            );
-
-            Action<string[]> help = s =>
+            Register("info", s =>
             {
-                foreach (var cmd in _commands.Keys.OrderBy(o => o, StringComparer.InvariantCultureIgnoreCase))
+                if (TargetManager.IsTargeting)
                 {
-                    MessageManager.HandleMessage(null, cmd, string.Empty, 0x3B2, Data.MessageType.System, 3, Data.TextType.SYSTEM, true);
+                    TargetManager.CancelTarget();
                 }
-            };
 
-            Register("?", help);
-            Register("help", help);
-            Register("commands", help);
+                TargetManager.SetTargeting(CursorTarget.SetTargetClientSide, CursorType.Target, TargetType.Neutral);
+            });
+
+            Register("datetime", s =>
+            {
+                if (World.Player != null)
+                {
+                    GameActions.Print(string.Format(ResGeneral.CurrentDateTimeNowIs0, DateTime.Now));
+                }
+            });
+
+            Register("hue", s =>
+            {
+                if (TargetManager.IsTargeting)
+                {
+                    TargetManager.CancelTarget();
+                }
+
+                TargetManager.SetTargeting(CursorTarget.HueCommandTarget, CursorType.Target, TargetType.Neutral);
+            });
+
+            Register("debug", s => CUOEnviroment.Debug = !CUOEnviroment.Debug);
+
+            Register("marksos", s => MarkersManagerGump.BeginTargetSOS());
+            Register("marktmap", s => MarkersManagerGump.BeginTargetTMap());
+
+            Register("?", ListCommands);
+            Register("help", ListCommands);
+            Register("commands", ListCommands);
         }
 
+        public static void ListCommands(string[] args)
+        {
+            foreach (var cmd in _commands.Keys.OrderBy(o => o, StringComparer.InvariantCultureIgnoreCase))
+            {
+                GameActions.Print(cmd.ToLower());
+            }
+        }
 
         public static void Register(string name, Action<string[]> callback)
         {
-            name = name.ToLower();
-
-            if (!_commands.ContainsKey(name))
-            {
-                _commands.Add(name, callback);
-            }
-            else
-            {
-                Log.Error($"Attempted to register command: '{name}' twice.");
-            }
+            _commands[name] = callback;
         }
 
         public static void UnRegister(string name)
         {
-            name = name.ToLower();
-
-            if (_commands.ContainsKey(name))
-            {
-                _commands.Remove(name);
-            }
+            _commands.Remove(name);
         }
 
         public static void UnRegisterAll()
@@ -152,15 +111,13 @@ namespace ClassicUO.Game.Managers
 
         public static void Execute(string name, params string[] args)
         {
-            name = name.ToLower();
-
             if (_commands.TryGetValue(name, out Action<string[]> action))
             {
                 action.Invoke(args);
             }
             else
             {
-                Log.Warn($"Command: '{name}' not exists");
+                Log.Warn($"Command: '{name}' does not exist");
             }
         }
 
@@ -172,6 +129,7 @@ namespace ClassicUO.Game.Managers
             }
 
             Mouse.LastLeftButtonClickTime = 0;
+
             GameActions.Print(string.Format(ResGeneral.ItemID0Hue1, entity.Graphic, entity.Hue));
         }
     }

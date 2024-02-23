@@ -181,8 +181,10 @@ namespace ClassicUO.Game.Managers
             _pendingLocalTargetAction = null;
         }
 
-        public static void SetLocalTargeting(uint cursorID, TargetType cursorType, LocalTargetHandler onTarget)
+        public static void SetLocalTargeting(TargetType cursorType, LocalTargetHandler onTarget)
         {
+            uint cursorID = (uint)onTarget.Method.GetHashCode();
+
             SetTargeting(CursorTarget.LocalTarget, cursorID, cursorType);
 
             _pendingLocalTargetId = cursorID;
