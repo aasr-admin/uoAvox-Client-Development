@@ -3155,24 +3155,25 @@ namespace ClassicUO.Network
             ushort endY = p.ReadUInt16BE();
             ushort width = p.ReadUInt16BE();
             ushort height = p.ReadUInt16BE();
+            ushort facet = 0;
 
-            MapGump gump = new MapGump(serial, gumpid, width, height);
             SpriteInfo multiMapInfo;
 
             if (p[0] == 0xF5 || Client.Version >= Utility.ClientVersion.CV_308Z)
             {
-                ushort facet = 0;
-
                 if (p[0] == 0xF5)
                 {
                     facet = p.ReadUInt16BE();
                 }
 
-                multiMapInfo = Client.Game.MultiMaps.GetMap(facet, width, height, startX, startY, endX, endY);            }
+                multiMapInfo = Client.Game.MultiMaps.GetMap(facet, width, height, startX, startY, endX, endY);
+            }
             else
             {
                 multiMapInfo = Client.Game.MultiMaps.GetMap(null, width, height, startX, startY, endX, endY);
             }
+
+            MapGump gump = new MapGump(serial, facet, width, height);
 
             if (multiMapInfo.Texture != null)
                 gump.SetMapTexture(multiMapInfo.Texture);
