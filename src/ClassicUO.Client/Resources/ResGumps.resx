@@ -1585,4 +1585,34 @@ Client version: '{0}'</value>
   <data name="HueContainerGumps" xml:space="preserve">
     <value>Recolor container gump by item hue</value>
   </data>
+  <data name="SOSMarkerImport" xml:space="preserve">
+    <value>Mark SOS</value>
+  </data>
+  <data name="SOSMarkerAdded" xml:space="preserve">
+    <value>SOS marker added!</value>
+  </data>
+  <data name="SOSMarkerTarget" xml:space="preserve">
+    <value>Target the SOS you wish to mark on the map...</value>
+  </data>
+  <data name="SOSMarkerUpdated" xml:space="preserve">
+    <value>SOS marker updated!</value>
+  </data>
+  <data name="SOSMarkerFailed" xml:space="preserve">
+    <value>SOS marker failed!</value>
+  </data>
+  <data name="TMapMarkerAdded" xml:space="preserve">
+    <value>Treasure Map marker added!</value>
+  </data>
+  <data name="TMapMarkerFailed" xml:space="preserve">
+    <value>Treasure Map marker failed!</value>
+  </data>
+  <data name="TMapMarkerTarget" xml:space="preserve">
+    <value>Target the decoded Treasure Map you wish to mark on the map...</value>
+  </data>
+  <data name="TMapMarkerUpdated" xml:space="preserve">
+    <value>Treasure Map marker updated!</value>
+  </data>
+  <data name="TMapMarkerImport" xml:space="preserve">
+    <value>Mark T-Map</value>
+  </data>
 </root>

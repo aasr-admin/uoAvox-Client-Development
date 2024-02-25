@@ -39,6 +39,8 @@ using ClassicUO.Assets;
 using ClassicUO.Network;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
+using System;
+using System.Collections.Generic;
 
 namespace ClassicUO.Game.Managers
 {
@@ -52,7 +54,8 @@ namespace ClassicUO.Game.Managers
         Grab,
         SetGrabBag,
         HueCommandTarget,
-        IgnorePlayerTarget
+        IgnorePlayerTarget,
+        LocalTarget
     }
 
     internal class CursorType
@@ -128,8 +131,14 @@ namespace ClassicUO.Game.Managers
         }
     }
 
+    internal delegate void LocalTargetHandler(LastTargetInfo info);
+
     internal static class TargetManager
     {
+        private static uint _pendingLocalTargetId;
+        private static LocalTargetHandler _pendingLocalTargetAction;
+        private static readonly LastTargetInfo _pendingLocalTargetInfo = new LastTargetInfo();
+
         private static uint _targetCursorId;
         private static readonly byte[] _lastDataBuffer = new byte[19];
 
@@ -137,6 +146,7 @@ namespace ClassicUO.Game.Managers
 
         public static readonly LastTargetInfo LastTargetInfo = new LastTargetInfo();
 
+        public static uint TargetCursorId => _targetCursorId;
 
         public static MultiTargetInfo MultiTargetInfo { get; private set; }
 
@@ -166,10 +176,28 @@ namespace ClassicUO.Game.Managers
             _targetCursorId = 0;
             MultiTargetInfo = null;
             TargetingType = 0;
+
+            _pendingLocalTargetId = 0;
+            _pendingLocalTargetAction = null;
+        }
+
+        public static void SetLocalTargeting(TargetType cursorType, LocalTargetHandler onTarget)
+        {
+            uint cursorID = (uint)onTarget.Method.GetHashCode();
+
+            SetTargeting(CursorTarget.LocalTarget, cursorID, cursorType);
+
+            _pendingLocalTargetId = cursorID;
+            _pendingLocalTargetAction = onTarget;
+            _pendingLocalTargetInfo.Clear();
         }
 
         public static void SetTargeting(CursorTarget targeting, uint cursorID, TargetType cursorType)
         {
+            _pendingLocalTargetId = 0;
+            _pendingLocalTargetAction = null;
+            _pendingLocalTargetInfo.Clear();
+
             if (targeting == CursorTarget.Invalid)
             {
                 return;
@@ -267,6 +295,21 @@ namespace ClassicUO.Game.Managers
                     case CursorTarget.Object:
                     case CursorTarget.HueCommandTarget:
                     case CursorTarget.SetTargetClientSide:
+                    case CursorTarget.LocalTarget:
+
+                        if (TargetingState == CursorTarget.LocalTarget)
+                        {
+                            if (_targetCursorId == _pendingLocalTargetId && _pendingLocalTargetAction != null)
+                            {
+                                _pendingLocalTargetInfo.SetEntity(entity);
+
+                                _pendingLocalTargetAction(_pendingLocalTargetInfo);
+                            }
+
+                            _pendingLocalTargetId = 0;
+                            _pendingLocalTargetAction = null;
+                            _pendingLocalTargetInfo.Clear();
+                        }
 
                         if (entity != World.Player)
                         {
@@ -324,7 +367,7 @@ namespace ClassicUO.Game.Managers
                             }
                         }
 
-                        if (TargetingState != CursorTarget.SetTargetClientSide)
+                        if (TargetingState != CursorTarget.SetTargetClientSide && TargetingState != CursorTarget.LocalTarget)
                         {
                             _lastDataBuffer[0] = 0x6C;
 

@@ -42,6 +42,8 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Game.UI.Gumps
 {
+    internal delegate void MapGumpPinAddedHandler(int x, int y, MapGump.PinControl pin);
+
     internal class MapGump : Gump
     {
         private readonly Button[] _buttons = new Button[3];
@@ -53,11 +55,16 @@ namespace ClassicUO.Game.UI.Gumps
 
         private uint _pinTimer;
 
-        public MapGump(uint serial, ushort gumpid, int width, int height) : base(serial, 0)
+        public ushort MapId { get; }
+
+        public event MapGumpPinAddedHandler OnPinAdded;
+
+        public MapGump(uint serial, ushort facetid, int width, int height) : base(serial, 0)
         {
             AcceptMouseInput = false;
             CanMove = true;
             CanCloseWithRightClick = true;
+            MapId = facetid;
             Width = width;
             Height = height;
 
@@ -116,6 +123,8 @@ namespace ClassicUO.Game.UI.Gumps
             c.NumberText = (_container.Count + 1).ToString();
             _container.Add(c);
             Add(c);
+
+            OnPinAdded?.Invoke(x, y, c);
         }
 
         public void ClearContainer()
@@ -380,6 +389,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
+            OnPinAdded = null;
+
             _hit.MouseUp -= TextureControlOnMouseUp;
             _mapTexture?.Dispose();
             base.Dispose();
@@ -392,15 +403,18 @@ namespace ClassicUO.Game.UI.Gumps
             ClearCourse
         }
 
-        private class PinControl : Control
+        public class PinControl : Control
         {
             private readonly GumpPic _pic;
             private readonly RenderedText _text;
 
+            public int InitX { get; }
+            public int InitY { get; }
+
             public PinControl(int x, int y)
             {
-                X = x;
-                Y = y;
+                X = InitX = x;
+                Y = InitY = y;
 
 
                 _text = RenderedText.Create(string.Empty, font: 0, isunicode: false);

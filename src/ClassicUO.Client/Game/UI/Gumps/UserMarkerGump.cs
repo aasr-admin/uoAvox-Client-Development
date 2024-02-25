@@ -31,7 +31,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly int _markerIdx;
 
         private const int MAX_CORD_LEN = 10;
-        private const int MAX_NAME_LEN = 25;
+        private const int MAX_NAME_LEN = 100;
 
         private const int MAP_MIN_CORD = 0;
         private readonly int _mapMaxX = MapLoader.Instance.MapsDefaultSize[World.MapIndex, 0];
@@ -56,7 +56,10 @@ namespace ClassicUO.Game.UI.Gumps
             _markerIdx = markerIdx;
 
             _colors = new[] { "none", "red", "green", "blue", "purple", "black", "yellow", "white" };
-            _icons = _markerIcons.Keys.ToArray();
+            _icons = MarkerIcons.Keys.Select(k => k.ToLower()).ToArray();
+
+            color = color.ToLower();
+            icon = icon.ToLower();
 
             var markerName = _markerIdx < 0 ? ResGumps.MarkerDefName : _markers[_markerIdx].Name;
 
@@ -331,7 +334,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Color = GetColor(color),
             };
 
-            if (!_markerIcons.TryGetValue(icon, out var iconTexture))
+            if (!MarkerIcons.TryGetValue(icon, out var iconTexture))
             {
                 return marker;
             }
