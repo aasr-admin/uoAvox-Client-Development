@@ -2069,15 +2069,6 @@ namespace ClassicUO.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Import SOS.
-        /// </summary>
-        public static string ImportSOS {
-            get {
-                return ResourceManager.GetString("ImportSOS", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Impossible to define the client version.
         ///Client version: &apos;{0}&apos;.
         /// </summary>
@@ -3765,6 +3756,15 @@ namespace ClassicUO.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Mark SOS.
+        /// </summary>
+        public static string SOSMarkerImport {
+            get {
+                return ResourceManager.GetString("SOSMarkerImport", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Target the SOS you wish to mark on the map....
         /// </summary>
         public static string SOSMarkerTarget {
@@ -4106,6 +4106,51 @@ namespace ClassicUO.Resources {
         public static string Title {
             get {
                 return ResourceManager.GetString("Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Treasure Map marker added!.
+        /// </summary>
+        public static string TMapMarkerAdded {
+            get {
+                return ResourceManager.GetString("TMapMarkerAdded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Treasure Map marker failed!.
+        /// </summary>
+        public static string TMapMarkerFailed {
+            get {
+                return ResourceManager.GetString("TMapMarkerFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mark T-Map.
+        /// </summary>
+        public static string TMapMarkerImport {
+            get {
+                return ResourceManager.GetString("TMapMarkerImport", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Target the decoded Treasure Map you wish to mark on the map....
+        /// </summary>
+        public static string TMapMarkerTarget {
+            get {
+                return ResourceManager.GetString("TMapMarkerTarget", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Treasure Map marker updated!.
+        /// </summary>
+        public static string TMapMarkerUpdated {
+            get {
+                return ResourceManager.GetString("TMapMarkerUpdated", resourceCulture);
             }
         }
         
