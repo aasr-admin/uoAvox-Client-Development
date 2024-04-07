@@ -71,11 +71,14 @@ namespace ClassicUO.Network
             new[] { '@', '@' }
         );
 
+        public static PacketHandlers Handler { get; } = new PacketHandlers();
+
+        public static EventHandler<Item> OnItemUpdated;
+        public static EventHandler<Mobile> OnMobileUpdated;
+
         private List<uint> _clilocRequests = new List<uint>();
         private List<uint> _customHouseRequests = new List<uint>();
         private readonly OnPacketBufferReader[] _handlers = new OnPacketBufferReader[0x100];
-
-        public static PacketHandlers Handler { get; } = new PacketHandlers();
 
         public void Add(byte id, OnPacketBufferReader handler) => _handlers[id] = handler;
 
@@ -6369,6 +6372,8 @@ namespace ClassicUO.Network
                     //    GameActions.SendCloseStatus(serial);
                     //}
                 }
+
+                OnMobileUpdated.Raise(mobile);
             }
             else
             {
@@ -6392,6 +6397,8 @@ namespace ClassicUO.Network
                         World.Player.TryOpenCorpses();
                     }
                 }
+
+                OnItemUpdated.Raise(item);
             }
         }
 

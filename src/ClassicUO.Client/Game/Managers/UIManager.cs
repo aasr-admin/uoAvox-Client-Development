@@ -37,6 +37,8 @@ using ClassicUO.Game.UI.Controls;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
+using ClassicUO.Utility;
+
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.Managers
@@ -111,7 +113,7 @@ namespace ClassicUO.Game.Managers
 
         public static ContextMenuShowMenu ContextMenu { get; private set; }
 
-        public static event Action<Gump> OnAdded, OnRemoved;
+        public static event EventHandler<Gump> OnAdded, OnRemoved;
 
         public static void ShowGamePopup(PopupMenuGump popup)
         {
@@ -380,7 +382,7 @@ namespace ClassicUO.Game.Managers
                 {
                     Gumps.Remove(first);
 
-                    OnRemoved?.Invoke(g);
+                    OnRemoved.Raise(g);
                 }
 
                 first = next;
@@ -420,7 +422,7 @@ namespace ClassicUO.Game.Managers
 
                 _needSort = Gumps.Count > 1;
 
-                OnAdded?.Invoke(gump);
+                OnAdded.Raise(gump);
             }
         }
 
