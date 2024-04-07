@@ -32,76 +32,39 @@
 
 using System;
 using System.Linq;
+
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
-using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Controls
 {
-    internal class Combobox : Control
+    internal class Combobox
+    (
+        int x,
+        int y,
+        int width,
+        string[] items,
+        int selected = -1,
+        int maxHeight = 200,
+        bool showArrow = true,
+        string emptyString = "",
+        byte font = 9
+    ) : Combobox<string>(x, y, width, items, selected, maxHeight, showArrow, emptyString, font)
     {
-        private readonly byte _font;
-        private readonly string[] _items;
+    }
+
+    internal class Combobox<T> : Control
+    {
+        private readonly T[] _items;
+
         private readonly Label _label;
         private readonly int _maxHeight;
+        private readonly byte _font;
+
         private int _selectedIndex;
-
-        public Combobox
-        (
-            int x,
-            int y,
-            int width,
-            string[] items,
-            int selected = -1,
-            int maxHeight = 200,
-            bool showArrow = true,
-            string emptyString = "",
-            byte font = 9
-        )
-        {
-            X = x;
-            Y = y;
-            Width = width;
-            Height = 25;
-            SelectedIndex = selected;
-            _font = font;
-            _items = items;
-            _maxHeight = maxHeight;
-
-            Add
-            (
-                new ResizePic(0x0BB8)
-                {
-                    Width = width, Height = Height
-                }
-            );
-
-            string initialText = selected > -1 ? items[selected] : emptyString;
-
-            bool isAsianLang = string.Compare(Settings.GlobalSettings.Language, "CHT", StringComparison.InvariantCultureIgnoreCase) == 0 || 
-                string.Compare(Settings.GlobalSettings.Language, "KOR", StringComparison.InvariantCultureIgnoreCase) == 0 ||
-                string.Compare(Settings.GlobalSettings.Language, "JPN", StringComparison.InvariantCultureIgnoreCase) == 0;
-
-            bool unicode = isAsianLang;
-            byte font1 = (byte)(isAsianLang ? 1 : _font);
-
-            Add
-            (
-                _label = new Label(initialText, unicode, 0x0453, font: font1)
-                {
-                    X = 2, Y = 5
-                }
-            );
-
-            if (showArrow)
-            {
-                Add(new GumpPic(width - 18, 2, 0x00FC, 0));
-            }
-        }
-
 
         public int SelectedIndex
         {
@@ -112,28 +75,94 @@ namespace ClassicUO.Game.UI.Controls
 
                 if (_items != null)
                 {
-                    _label.Text = _items[value];
+                    _label.Text = $"{_items[value]}";
 
                     OnOptionSelected?.Invoke(this, value);
                 }
             }
         }
 
+        public T SelectedItem
+        {
+            get => _selectedIndex >= 0 && _selectedIndex < _items?.Length ? _items[_selectedIndex] : default;
+            set
+            {
+                if (_items?.Length > 0)
+                {
+                    SelectedIndex = Array.IndexOf(_items, value);
+                }
+                else
+                {
+                    SelectedIndex = -1;
+                }
+            }
+        }
 
         public event EventHandler<int> OnOptionSelected;
 
+        public Combobox
+        (
+            int x,
+            int y,
+            int width,
+            T[] items,
+            int selected = -1,
+            int maxHeight = 200,
+            bool showArrow = true,
+            T defaultItem = default,
+            byte font = 9
+        )
+        {
+            _font = font;
+            _items = items;
+            _maxHeight = maxHeight;
+
+            X = x;
+            Y = y;
+
+            Width = width;
+            Height = 25;
+
+            SelectedIndex = selected;
+
+            Add(new ResizePic(0x0BB8)
+            {
+                Width = width,
+                Height = Height
+            });
+
+            T initialItem = selected > -1 ? items[selected] : defaultItem;
+
+            bool isAsianLang = string.Compare(Settings.GlobalSettings.Language, "CHT", StringComparison.InvariantCultureIgnoreCase) == 0
+                            || string.Compare(Settings.GlobalSettings.Language, "KOR", StringComparison.InvariantCultureIgnoreCase) == 0
+                            || string.Compare(Settings.GlobalSettings.Language, "JPN", StringComparison.InvariantCultureIgnoreCase) == 0;
+
+            bool unicode = isAsianLang;
+            byte font1 = (byte)(isAsianLang ? 1 : _font);
+
+            Add(_label = new Label($"{initialItem}", unicode, 0x0453, font: font1)
+            {
+                X = 2,
+                Y = 5
+            });
+
+            if (showArrow)
+            {
+                Add(new GumpPic(width - 18, 2, 0x00FC, 0));
+            }
+        }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
             if (batcher.ClipBegin(x, y, Width, Height))
             {
                 base.Draw(batcher, x, y);
+
                 batcher.ClipEnd();
             }
 
             return true;
         }
-
 
         protected override void OnMouseUp(int x, int y, MouseButtonType button)
         {
@@ -153,29 +182,30 @@ namespace ClassicUO.Game.UI.Controls
                 comboY = Client.Game.Window.ClientBounds.Height - _maxHeight;
             }
 
-            UIManager.Add
-            (
-                new ComboboxGump
-                (
-                    ScreenCoordinateX,
-                    comboY,
-                    Width,
-                    _maxHeight,
-                    _items,
-                    _font,
-                    this
-                )
-            );
+            UIManager.Add(new ComboboxGump(ScreenCoordinateX, comboY, Width, _maxHeight, _items, _font, this));
 
             base.OnMouseUp(x, y, button);
+        }
+
+        public override void Dispose()
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            base.Dispose();
+
+            OnOptionSelected = null;
         }
 
         private class ComboboxGump : Gump
         {
             private const int ELEMENT_HEIGHT = 15;
 
+            private readonly Combobox<T> _combobox;
 
-            private readonly Combobox _combobox;
+            private readonly ResizePic _background;
 
             public ComboboxGump
             (
@@ -183,9 +213,9 @@ namespace ClassicUO.Game.UI.Controls
                 int y,
                 int width,
                 int maxHeight,
-                string[] items,
+                T[] items,
                 byte font,
-                Combobox combobox
+                Combobox<T> combobox
             ) : base(0, 0)
             {
                 CanMove = false;
@@ -199,42 +229,30 @@ namespace ClassicUO.Game.UI.Controls
 
                 _combobox = combobox;
 
-                ResizePic background;
-                Add(background = new ResizePic(0x0BB8));
-                background.AcceptMouseInput = false;
+                Add(_background = new(0x0BB8)
+                {
+                    AcceptMouseInput = false
+                });
 
                 HoveredLabel[] labels = new HoveredLabel[items.Length];
 
-                bool isAsianLang = string.Compare(Settings.GlobalSettings.Language, "CHT", StringComparison.InvariantCultureIgnoreCase) == 0 || 
-                    string.Compare(Settings.GlobalSettings.Language, "KOR", StringComparison.InvariantCultureIgnoreCase) == 0 ||
-                    string.Compare(Settings.GlobalSettings.Language, "JPN", StringComparison.InvariantCultureIgnoreCase) == 0;
+                bool isAsianLang = string.Compare(Settings.GlobalSettings.Language, "CHT", StringComparison.InvariantCultureIgnoreCase) == 0
+                                || string.Compare(Settings.GlobalSettings.Language, "KOR", StringComparison.InvariantCultureIgnoreCase) == 0
+                                || string.Compare(Settings.GlobalSettings.Language, "JPN", StringComparison.InvariantCultureIgnoreCase) == 0;
 
                 bool unicode = isAsianLang;
                 byte font1 = (byte)(isAsianLang ? 1 : font);
 
                 for (int i = 0; i < items.Length; i++)
                 {
-                    string item = items[i];
+                    string item = $"{items[i]}";
 
-                    if (item == null)
-                    {
-                        item = string.Empty;
-                    }
-
-                    HoveredLabel label = new HoveredLabel
-                    (
-                        item,
-                        unicode,
-                        0x0453,
-                        0x0453,
-                        0x0453,
-                        font: font1
-                    )
+                    HoveredLabel label = new(item, unicode, 0x0453, 0x0453, 0x0453, font: font1)
                     {
                         X = 2,
                         Y = i * ELEMENT_HEIGHT,
                         DrawBackgroundCurrentIndex = true,
-                        IsVisible = item.Length != 0,
+                        IsVisible = !string.IsNullOrEmpty(item),
                         Tag = i
                     };
 
@@ -246,27 +264,20 @@ namespace ClassicUO.Game.UI.Controls
                 int totalHeight = Math.Min(maxHeight, labels.Max(o => o.Y + o.Height));
                 int maxWidth = Math.Max(width, labels.Max(o => o.X + o.Width));
 
-                ScrollArea area = new ScrollArea
-                (
-                    0,
-                    0,
-                    maxWidth + 15,
-                    totalHeight,
-                    true
-                );
+                ScrollArea area = new(0, 0, maxWidth + 15, totalHeight, true);
 
                 foreach (HoveredLabel label in labels)
                 {
                     label.Width = maxWidth;
+
                     area.Add(label);
                 }
 
                 Add(area);
 
-                background.Width = maxWidth;
-                background.Height = totalHeight;
+                _background.Width = maxWidth;
+                _background.Height = totalHeight;
             }
-
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {
@@ -282,9 +293,9 @@ namespace ClassicUO.Game.UI.Controls
 
             private void LabelOnMouseUp(object sender, MouseEventArgs e)
             {
-                if (e.Button == MouseButtonType.Left)
+                if (e.Button == MouseButtonType.Left && sender is Label label && label.Tag is int selected)
                 {
-                    _combobox.SelectedIndex = (int) ((Label) sender).Tag;
+                    _combobox.SelectedIndex = selected;
 
                     Dispose();
                 }

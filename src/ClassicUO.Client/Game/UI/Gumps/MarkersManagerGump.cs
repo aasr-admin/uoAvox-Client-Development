@@ -1,19 +1,21 @@
-﻿using ClassicUO.Game.Managers;
-using ClassicUO.Game.UI.Controls;
-using ClassicUO.Utility;
-using Microsoft.Xna.Framework;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using ClassicUO.Resources;
-using Microsoft.Xna.Framework.Graphics;
-using static ClassicUO.Game.UI.Gumps.WorldMapGump;
-using ClassicUO.Renderer;
-using ClassicUO.Game.GameObjects;
-using ClassicUO.Network;
 using System.Text.RegularExpressions;
-using ClassicUO.Game.Data;
+
+using ClassicUO.Game.GameObjects;
+using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI.Controls;
+using ClassicUO.Network;
+using ClassicUO.Resources;
+using ClassicUO.Renderer;
+using ClassicUO.Utility;
+
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+
+using static ClassicUO.Game.UI.Gumps.WorldMapGump;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -32,7 +34,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private const ushort HUE_FONT = 0xFFFF;
 
-        private static readonly List<WMapMarkerFile> _markerFiles = WorldMapGump.MarkerFiles;
+        private static readonly Dictionary<string, WMapMarkerFile> _markerFiles = MarkerFiles;
 
         private bool _isMarkerListModified;
 
@@ -41,12 +43,10 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly SearchTextBoxControl _searchTextBox;
         private readonly NiceButton _importSOSButton, _importTMapButton;
 
-        private string _searchText = "";
-        private int _categoryId = 0;
+        private string _searchText = string.Empty;
+        private string _categoryId = string.Empty;
 
-        private List<WMapMarker> _markers = [];
-
-        private readonly string _userMarkersFilePath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Client", $"{USER_MARKERS_FILE}.usr");
+        private WMapMarkerFile _file;
 
         private readonly int MARKERS_CATEGORY_GROUP_INDEX = 10;
 
@@ -61,7 +61,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (_markerFiles.Count > 0)
             {
-                _markers = _markerFiles[0].Markers;
+                _file = _markerFiles.Values.First();
                 button_width = WIDTH / _markerFiles.Count;
             }
 
@@ -143,7 +143,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             initX = 0;
 
-            foreach (var file in _markerFiles)
+            foreach (var file in _markerFiles.Values)
             {
                 var b = new NiceButton(button_width * initX, HEIGHT - 40, button_width, 40, ButtonAction.Activate, file.Name, MARKERS_CATEGORY_GROUP_INDEX)
                 {
@@ -176,17 +176,17 @@ namespace ClassicUO.Game.UI.Gumps
 
             var idx = 0;
 
-            foreach (var marker in _markers)
+            foreach (var marker in _file.Markers)
             {
                 if (!string.IsNullOrWhiteSpace(_searchText) && marker.Name.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     continue;
                 }
 
-                var newElement = new MarkerManagerControl(_markers, marker, idx * 25, idx, isEditable);
+                var newElement = new MarkerManagerControl(marker, idx * 25, isEditable);
 
-                newElement.RemoveMarkerEvent += MarkerRemoveEventHandler;
-                newElement.EditMarkerEvent += MarkerEditEventHandler;
+                newElement.OnRemoveMarker += OnRemoveMarker;
+                newElement.OnEditMarker += OnEditMarker;
 
                 _scrollArea.Add(newElement);
 
@@ -194,18 +194,21 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        private void MarkerRemoveEventHandler(object sender, EventArgs e)
+        private void OnRemoveMarker(object sender, WMapMarker marker)
         {
-            if (sender is int idx)
+            if (_file.Markers.Remove(marker))
             {
-                _markers.RemoveAt(idx);
-
                 //Redraw List
-                DrawArea(_markerFiles[_categoryId].IsEditable);
+                DrawArea(_file.IsEditable);
 
                 //Mark list as Modified
                 _isMarkerListModified = true;
             }
+        }
+
+        private void OnEditMarker(object sender, WMapMarker marker)
+        {
+            _isMarkerListModified = true;
         }
 
         public override void OnButtonClick(int buttonID)
@@ -244,8 +247,8 @@ namespace ClassicUO.Game.UI.Gumps
 
                 default:
                 {
-                    _categoryId = buttonID;
-                    _markers = _markerFiles[buttonID].Markers;
+                    _categoryId = _markerFiles.Keys.ElementAt(buttonID);
+                    _file = _markerFiles[_categoryId];
                     break;
                 }
             }
@@ -265,17 +268,14 @@ namespace ClassicUO.Game.UI.Gumps
             DrawArea(_markerFiles[_categoryId].IsEditable);
         }
 
-        private void MarkerEditEventHandler(object sender, EventArgs e)
-        {
-            _isMarkerListModified = true;
-        }
-
         #region SOS + TMap Markers
 
         static MarkersManagerGump()
         {
             UIManager.OnAdded += HandleSOSGump;
             UIManager.OnAdded += HandleTMapGump;
+
+            PacketHandlers.OnItemUpdated += HandleTMapUpdate;
         }
 
         #region SOS
@@ -327,14 +327,14 @@ namespace ClassicUO.Game.UI.Gumps
             SendSOSFailedMessage();
         }
 
-        private static void HandleSOSGump(Gump gump)
+        private static void HandleSOSGump(object sender, Gump gump)
         {
             if (_sosItem == null)
             {
                 return;
             }
 
-            var userFile = _markerFiles.Where(f => f.Name == USER_MARKERS_FILE).FirstOrDefault();
+            var userFile = UserMarkersFile;
 
             if (userFile == null)
             {
@@ -381,8 +381,6 @@ namespace ClassicUO.Game.UI.Gumps
 
             try
             {
-                var manager = UIManager.GetGump<MarkersManagerGump>();
-
                 var markerX = -1;
                 var markerY = -1;
 
@@ -390,21 +388,10 @@ namespace ClassicUO.Game.UI.Gumps
 
                 var cmp = StringComparison.OrdinalIgnoreCase;
 
-                if (manager != null)
+                if (userFile.Markers.Exists(m => m.IconName.IndexOf("SOS", cmp) >= 0 && m.MapId < 0 && m.X == markerX && m.Y == markerY))
                 {
-                    if (manager._markers.Exists(m => m.MarkerIconName.IndexOf("SOS", cmp) >= 0 && m.MapId < 0 && m.X == markerX && m.Y == markerY))
-                    {
-                        SendSOSUpdatedMessage();
-                        return;
-                    }
-                }
-                else
-                {
-                    if (userFile.Markers.Exists(m => m.MarkerIconName.IndexOf("SOS", cmp) >= 0 && m.MapId < 0 && m.X == markerX && m.Y == markerY))
-                    {
-                        SendSOSUpdatedMessage();
-                        return;
-                    }
+                    SendSOSUpdatedMessage();
+                    return;
                 }
 
                 WMapMarker marker = new()
@@ -413,32 +400,26 @@ namespace ClassicUO.Game.UI.Gumps
                     Y = markerY,
                     MapId = -1,
                     Name = _sosItem.Name,
-                    MarkerIconName = "SOS",
-                    Color = Color.Green,
+                    IconName = "SOS",
                     ColorName = "green",
                     ZoomIndex = 3
                 };
 
-                if (MarkerIcons.TryGetValue(marker.MarkerIconName, out Texture2D value))
-                {
-                    marker.MarkerIcon = value;
-                }
+                userFile.Markers.Add(marker);
 
                 SendSOSAddedMessage();
 
-                if (manager != null)
-                {
-                    manager._markers.Add(marker);
+                var manager = UIManager.GetGump<MarkersManagerGump>();
 
+                if (manager?._file == userFile)
+                {
                     manager._isMarkerListModified = true;
 
                     manager.DrawArea(userFile.IsEditable);
                 }
                 else
                 {
-                    userFile.Markers.Add(marker);
-
-                    File.WriteAllLines(userFile.FullPath, userFile.Markers.Select(m => $"{m.X},{m.Y},{m.MapId},{m.Name},{m.MarkerIconName},{m.ColorName},{m.ZoomIndex}"));
+                    File.WriteAllLines(userFile.FullPath, userFile.Markers.Select(m => $"{m.X},{m.Y},{m.MapId},{m.Name},{m.IconName},{m.ColorName},{m.ZoomIndex}"));
                 }
 
                 var wmGump = UIManager.GetGump<WorldMapGump>();
@@ -461,6 +442,50 @@ namespace ClassicUO.Game.UI.Gumps
         #region TMap
 
         private static Item _tmapItem;
+
+        private static void HandleTMapUpdate(object sender, Item item)
+        {
+            if (item?.OnGround != true)
+            {
+                return;
+            }
+
+            if (item.Name?.IndexOf("treasure chest", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return;
+            }
+
+            var userFile = UserMarkersFile;
+
+            if (userFile == null)
+            {
+                _tmapItem = null;
+
+                SendTMapFailedMessage();
+
+                return;
+            }
+
+            var cmp = StringComparison.OrdinalIgnoreCase;
+
+            if (userFile.Markers.RemoveAll(m => m.IconName.IndexOf("TMAP", cmp) >= 0 && m.MapId == World.MapIndex && m.X == item.X && m.Y == item.Y) > 0)
+            {
+                SendTMapUpdatedMessage();
+
+                var manager = UIManager.GetGump<MarkersManagerGump>();
+
+                if (manager?._file == userFile)
+                {
+                    manager._isMarkerListModified = true;
+
+                    manager.DrawArea(userFile.IsEditable);
+                }
+                else
+                {
+                    File.WriteAllLines(userFile.FullPath, userFile.Markers.Select(m => $"{m.X},{m.Y},{m.MapId},{m.Name},{m.IconName},{m.ColorName},{m.ZoomIndex}"));
+                }
+            }
+        }
 
         private static void SendTMapFailedMessage()
         {
@@ -507,14 +532,14 @@ namespace ClassicUO.Game.UI.Gumps
             SendTMapFailedMessage();
         }
 
-        private static void HandleTMapGump(Gump gump)
+        private static void HandleTMapGump(object sender, Gump gump)
         {
             if (_tmapItem == null)
             {
                 return;
             }
 
-            var userFile = _markerFiles.Where(f => f.Name == USER_MARKERS_FILE).FirstOrDefault();
+            var userFile = UserMarkersFile;
 
             if (userFile == null)
             {
@@ -545,7 +570,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 static void redirect(int mx, int my, MapGump.PinControl mp)
                 {
-                    HandleTMapGump(mp.Parent as Gump);
+                    HandleTMapGump(mp, mp.Parent as Gump);
                 }
 
                 mapGump.OnPinAdded -= redirect;
@@ -556,28 +581,15 @@ namespace ClassicUO.Game.UI.Gumps
 
             try
             {
-                var manager = UIManager.GetGump<MarkersManagerGump>();
-
                 var markerX = pin.Value.X;
                 var markerY = pin.Value.Y;
 
                 var cmp = StringComparison.OrdinalIgnoreCase;
 
-                if (manager != null)
+                if (userFile.Markers.Exists(m => m.IconName.IndexOf("TMAP", cmp) >= 0 && m.MapId == mapGump.MapId && m.X == markerX && m.Y == markerY))
                 {
-                    if (manager._markers.Exists(m => m.MarkerIconName.IndexOf("TMAP", cmp) >= 0 && m.MapId == mapGump.MapId && m.X == markerX && m.Y == markerY))
-                    {
-                        SendTMapUpdatedMessage();
-                        return;
-                    }
-                }
-                else
-                {
-                    if (userFile.Markers.Exists(m => m.MarkerIconName.IndexOf("TMAP", cmp) >= 0 && m.MapId == mapGump.MapId && m.X == markerX && m.Y == markerY))
-                    {
-                        SendTMapUpdatedMessage();
-                        return;
-                    }
+                    SendTMapUpdatedMessage();
+                    return;
                 }
 
                 WMapMarker marker = new()
@@ -586,32 +598,26 @@ namespace ClassicUO.Game.UI.Gumps
                     Y = markerY,
                     MapId = mapGump.MapId,
                     Name = _tmapItem.Name,
-                    MarkerIconName = "TMAP",
-                    Color = Color.Yellow,
+                    IconName = "TMAP",
                     ColorName = "yellow",
                     ZoomIndex = 3
                 };
 
-                if (MarkerIcons.TryGetValue(marker.MarkerIconName, out Texture2D value))
-                {
-                    marker.MarkerIcon = value;
-                }
+                userFile.Markers.Add(marker);
 
                 SendTMapAddedMessage();
 
-                if (manager != null)
-                {
-                    manager._markers.Add(marker);
+                var manager = UIManager.GetGump<MarkersManagerGump>();
 
+                if (manager?._file == userFile)
+                {
                     manager._isMarkerListModified = true;
 
                     manager.DrawArea(userFile.IsEditable);
                 }
                 else
                 {
-                    userFile.Markers.Add(marker);
-
-                    File.WriteAllLines(userFile.FullPath, userFile.Markers.Select(m => $"{m.X},{m.Y},{m.MapId},{m.Name},{m.MarkerIconName},{m.ColorName},{m.ZoomIndex}"));
+                    File.WriteAllLines(userFile.FullPath, userFile.Markers.Select(m => $"{m.X},{m.Y},{m.MapId},{m.Name},{m.IconName},{m.ColorName},{m.ZoomIndex}"));
                 }
 
                 var wmGump = UIManager.GetGump<WorldMapGump>();
@@ -637,11 +643,9 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (_isMarkerListModified)
             {
-                File.WriteAllLines(_userMarkersFilePath, _markers.Select(m => $"{m.X},{m.Y},{m.MapId},{m.Name},{m.MarkerIconName},{m.ColorName},{m.ZoomIndex}"));
+                File.WriteAllLines(UserMarkersFilePath, _file.Markers.Select(m => $"{m.X},{m.Y},{m.MapId},{m.Name},{m.IconName},{m.ColorName},{m.ZoomIndex}"));
 
                 _isMarkerListModified = false;
-
-                ReloadUserMarkers();
             }
 
             base.Dispose();
@@ -659,6 +663,11 @@ namespace ClassicUO.Game.UI.Gumps
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {
+                if (Texture == null)
+                {
+                    return false;
+                }
+
                 var hueVector = ShaderHueTranslator.GetHueVector(0);
 
                 batcher.Draw(Texture, new Rectangle(x, y + 7, Width, Height), hueVector);
@@ -669,23 +678,6 @@ namespace ClassicUO.Game.UI.Gumps
 
         private sealed class MarkerManagerControl : Control
         {
-            private readonly List<WMapMarker> _markers;
-
-            private readonly WMapMarker _marker;
-            private readonly int _y;
-            private readonly int _idx;
-            private readonly bool _isEditable;
-
-            private Label _labelName;
-            private Label _labelX;
-            private Label _labelY;
-            private Label _labelColor;
-
-            private DrawTexture _iconTexture;
-
-            public event EventHandler RemoveMarkerEvent;
-            public event EventHandler EditMarkerEvent;
-
             private enum ButtonsOption
             {
                 EDIT_MARKER_BTN,
@@ -693,46 +685,63 @@ namespace ClassicUO.Game.UI.Gumps
                 GOTO_MARKER_BTN
             }
 
-            public MarkerManagerControl(List<WMapMarker> markers, WMapMarker marker, int y, int idx, bool isEditable)
+            private readonly WMapMarker _marker;
+
+            private readonly Label _labelName, _labelX, _labelY, _labelColor;
+
+            private readonly DrawTexture _iconTexture;
+
+            public event EventHandler<WMapMarker> OnRemoveMarker, OnEditMarker;
+
+            public MarkerManagerControl(WMapMarker marker, int y, bool isEditable)
             {
                 CanMove = true;
 
-                _markers = markers;
-                _idx = idx;
                 _marker = marker;
-                _y = y;
-                _isEditable = isEditable;
 
-                DrawData();
-            }
-
-            private void DrawData()
-            {
-                if (_marker.MarkerIcon != null)
+                Add(_iconTexture = new DrawTexture(_marker.Icon)
                 {
-                    Add(_iconTexture = new DrawTexture(_marker.MarkerIcon) { X = 0, Y = _y - 5 });
-                }
+                    X = 0,
+                    Y = y - 5
+                });
 
-                Add(_labelName = new Label($"{_marker.Name}", true, HUE_FONT, 280) { X = 30, Y = _y });
+                Add(_labelName = new Label($"{_marker.Name}", true, HUE_FONT, 280)
+                {
+                    X = 30,
+                    Y = y
+                });
 
-                Add(_labelX = new Label($"{_marker.X}", true, HUE_FONT, 35) { X = 305, Y = _y });
-                Add(_labelY = new Label($"{_marker.Y}", true, HUE_FONT, 35) { X = 350, Y = _y });
+                Add(_labelX = new Label($"{_marker.X}", true, HUE_FONT, 35)
+                {
+                    X = 305,
+                    Y = y
+                });
 
-                Add(_labelColor = new Label($"{_marker.ColorName}", true, HUE_FONT, 35) { X = 410, Y = _y });
+                Add(_labelY = new Label($"{_marker.Y}", true, HUE_FONT, 35)
+                {
+                    X = 350,
+                    Y = y
+                });
 
-                if (_isEditable)
+                Add(_labelColor = new Label($"{_marker.ColorName}", true, HUE_FONT, 35)
+                {
+                    X = 410,
+                    Y = y
+                });
+
+                if (isEditable)
                 {
                     Add(new Button((int)ButtonsOption.EDIT_MARKER_BTN, 0xFAB, 0xFAC)
                     {
                         X = 470,
-                        Y = _y,
+                        Y = y,
                         ButtonAction = ButtonAction.Activate,
                     });
 
                     Add(new Button((int)ButtonsOption.REMOVE_MARKER_BTN, 0xFB1, 0xFB2)
                     {
                         X = 505,
-                        Y = _y,
+                        Y = y,
                         ButtonAction = ButtonAction.Activate,
                     });
                 }
@@ -740,28 +749,9 @@ namespace ClassicUO.Game.UI.Gumps
                 Add(new Button((int)ButtonsOption.GOTO_MARKER_BTN, 0xFA5, 0xFA7)
                 {
                     X = 540,
-                    Y = _y,
+                    Y = y,
                     ButtonAction = ButtonAction.Activate,
                 });
-            }
-
-            private void OnEditEnd(object sender, EventArgs e)
-            {
-                if (sender is WMapMarker editedMarker)
-                {
-                    _labelName.Text = editedMarker.Name;
-                    _labelColor.Text = editedMarker.ColorName;
-                    _labelX.Text = editedMarker.X.ToString();
-                    _labelY.Text = editedMarker.Y.ToString();
-
-                    if (editedMarker.MarkerIcon != null)
-                    {
-                        _iconTexture?.Dispose();
-                        _iconTexture = new DrawTexture(editedMarker.MarkerIcon);
-                    }
-
-                    EditMarkerEvent.Raise();
-                }
             }
 
             public override void OnButtonClick(int buttonId)
@@ -770,22 +760,22 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     case (int)ButtonsOption.EDIT_MARKER_BTN:
                     {
-                        var existingGump = UIManager.GetGump<UserMarkersGump>();
+                        var editGump = UIManager.GetGump<UserMarkerGump>();
 
-                        existingGump?.Dispose();
+                        editGump?.Dispose();
 
-                        var editUserMarkerGump = new UserMarkersGump(_marker.X, _marker.Y, _markers, _marker.ColorName, _marker.MarkerIconName, true, _idx);
+                        editGump = new UserMarkerGump(_marker);
 
-                        editUserMarkerGump.EditEnd += OnEditEnd;
+                        editGump.OnMarkerEdit += OnEditEnd;
 
-                        UIManager.Add(editUserMarkerGump);
+                        UIManager.Add(editGump);
 
                         break;
                     }
 
                     case (int)ButtonsOption.REMOVE_MARKER_BTN:
                     {
-                        RemoveMarkerEvent.Raise(_idx);
+                        OnRemoveMarker.Raise(_marker, this);
 
                         break;
                     }
@@ -799,6 +789,18 @@ namespace ClassicUO.Game.UI.Gumps
                         break;
                     }
                 }
+            }
+
+            private void OnEditEnd(object sender, WMapMarker marker)
+            {
+                _labelName.Text = marker.Name;
+                _labelColor.Text = marker.ColorName;
+                _labelX.Text = $"{marker.X}";
+                _labelY.Text = $"{marker.Y}";
+
+                _iconTexture.Texture = marker.Icon;
+
+                OnEditMarker.Raise(marker, this);
             }
         }
 
